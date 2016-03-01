@@ -1,7 +1,6 @@
 var $ = require('bel')
 var viewer = require('./lib/viewer')
 var tree = require('./lib/tree')
-var svg = require('./lib/svg')
 
 module.exports = function explorer (files) {
   console.time('explorer')

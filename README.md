@@ -20,32 +20,30 @@ Visit `http://localhost:9966`
 The example currently loads `example/example-fs-tree.json` as a mock file system
 but will hopefully be connected to [dat](https://github.com/maxogden/dat) soon.
 
-## Creating a Component
+[https://shama.github.io/fs-explorer](https://shama.github.io/fs-explorer)
 
-A very simple list can be created like:
-
-```js
-// list.js
-var $ = require('bel')
-
-module.exports = function (items) {
-  return $`<ul>
-    ${items.map(function (item) {
-      return $`<li>${item}</li>`
-    })}
-  </ul>`
-}
-```
-
-Then it can be added to a page with:
+## Usage
 
 ```js
-// app.js
-var list = require('./list.js')
-var element = list([
-  'grizzly',
-  'polar',
-  'brown'
-])
+var explorer = require('fs-explorer')
+
+// Build a file tree
+var files = [
+  {
+    path: 'bears',
+    type: 'folder',
+    mtime: new Date(),
+    children: [
+      {
+        path: 'bears/grizzly.js',
+        type: 'file',
+        mtime: new Date(),
+      }
+    ]
+  }
+]
+
+// Render the element and append to page
+var element = explorer(files)
 document.body.appendChild(element)
 ```

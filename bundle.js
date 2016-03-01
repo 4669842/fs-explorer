@@ -808,7 +808,7 @@ var createRouter = require('base-router')
 var nets = require('nets')
 
 var router = createRouter({
-  '/': function (params, done) {
+  '/fs-explorer': function (params, done) {
     nets({
       url: 'example/example-fs-tree.json',
       json: true
@@ -821,7 +821,7 @@ var router = createRouter({
 router.on('transition', function (router, data) {
   app.update(explorer(data))
 })
-router.transitionTo('/')
+router.transitionTo('/fs-explorer')
 
 var app = $`<div className="app">
   <i className="fa fa-spinner fa-spin"></i> Loading files....

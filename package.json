@@ -1,18 +1,17 @@
 {
   "name": "fs-explorer",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "wzrd example.js:bundle.js",
+    "start": "wzrd example/index.js:bundle.js",
     "test": "standard && browserify test.js | testron"
   },
   "author": "Kyle Robinson Young <kyle@dontkry.com> (http://dontkry.com)",
   "license": "MIT",
   "dependencies": {
-    "bel": "^1.0.0",
+    "bel": "git+https://github.com/shama/bel.git",
     "global": "^4.3.0",
-    "immutable": "^3.7.6",
     "normalize.css": "^3.0.3",
     "object-assign": "^4.0.1"
   },

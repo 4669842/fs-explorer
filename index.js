@@ -1,26 +1,20 @@
-var objectAssign = require('object-assign')
 var $ = require('bel')
-
 var viewer = require('./lib/viewer')
 var tree = require('./lib/tree')
 var svg = require('./lib/svg')
 
-module.exports = function explorer (files, opts) {
+module.exports = function explorer (files) {
   console.time('explorer')
-  opts = objectAssign({
-    className: 'fs-explorer'
-  }, opts)
   function render (selected) {
-    return $`<div className="${opts.className}">
-      ${tree(files)}
-      ${viewer(selected)}
+    return $`<div className="fs-explorer">
+      ${tree(files, onselected)}
+      ${viewer(selected, onselected)}
     </div>`
   }
+  function onselected (file) {
+    element.update(render(file))
+  }
   var element = render(files[0])
-  element.addEventListener('selected', function (e) {
-    console.log('selected got', e.detail.path)
-    element.rerender(render(e.detail))
-  }, false)
   console.timeEnd('explorer')
   return element
 }

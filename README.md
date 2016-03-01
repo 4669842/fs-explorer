@@ -1,4 +1,4 @@
-# fs-explorer
+# fs-explorer [![Build Status](http://img.shields.io/travis/shama/fs-explorer.svg)](https://travis-ci.org/shama/fs-explorer)
 
 A WIP file system explorer element.
 

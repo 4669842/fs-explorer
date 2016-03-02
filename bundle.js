@@ -3,11 +3,38 @@ var document = require('global/document')
 var hyperx = require('hyperx')
 var morphdom = require('morphdom')
 
+var SET_ATTR_PROPS = {
+  class: 1,
+  value: 1
+}
+var BOOL_PROPS = {
+  autofocus: 1,
+  checked: 1,
+  defaultChecked: 1,
+  disabled: 1,
+  formNoValidate: 1,
+  indeterminate: 1,
+  readOnly: 1,
+  required: 1,
+  willValidate: 1
+}
+
 var hx = hyperx(function createElement (tag, props, children) {
   var el = document.createElement(tag)
   for (var p in props) {
     if (props.hasOwnProperty(p)) {
-      el[p] = props[p]
+      var val = props[p]
+      // If a property is boolean, set itself to the key
+      if (BOOL_PROPS[p]) {
+        if (val === 'true') val = p
+        else if (val === 'false') continue
+      }
+      // If a property prefers setAttribute instead
+      if (SET_ATTR_PROPS[p] || BOOL_PROPS[p]) {
+        el.setAttribute(p, val)
+      } else {
+        el[p] = val
+      }
     }
   }
   function appendChild (childs) {
@@ -54,9 +81,6 @@ module.exports = function bel () {
   if (!el.id) {
     el.id = 'e' + id
     id += 1
-  }
-  el.toString = function () {
-    return el.outerHTML
   }
   el.update = function (newel) {
     if (typeof newel === 'function') {
@@ -808,7 +832,7 @@ var createRouter = require('base-router')
 var nets = require('nets')
 
 var router = createRouter({
-  '/fs-explorer': function (params, done) {
+  '/': function (params, done) {
     nets({
       url: 'example/example-fs-tree.json',
       json: true
@@ -821,7 +845,7 @@ var router = createRouter({
 router.on('transition', function (router, data) {
   app.update(explorer(data))
 })
-router.transitionTo('/fs-explorer')
+router.transitionTo('/')
 
 var app = $`<div className="app">
   <i className="fa fa-spinner fa-spin"></i> Loading files....
@@ -878,7 +902,7 @@ module.exports = function table (files, onselected) {
     </table>`
   }
   function sort (name) {
-    asc = (asc) ? false : true
+    asc = !asc
     sortBy = name
     files = files.sort(function (a, b) {
       a = a[name]
@@ -951,33 +975,32 @@ module.exports = function tree (files, onselected) {
   }
   function li (file) {
     var children = ''
-    var icon = $`<i className="fa"></i>`
+    var icon = ''
     if (file.type === 'folder') {
       if (file.opened) {
         children = $`<ul>${file.children.map(function (child) {
           return li(child)
         })}</ul>`
-        icon.className += ' fa-folder-open'
+        icon = 'fa-folder-open'
       } else {
-        icon.className += ' fa-folder'
+        icon = 'fa-folder'
       }
     } else {
-      icon.className += ' fa-file'
+      icon = 'fa-file'
     }
-    var children = (file.opened) ? $`<ul>${file.children.map(function (child) {
-      return li(child)
-    })}</ul>` : ''
-    return $`<li>
+    icon = $`<i className="fa ${icon}"></i>`
+    var el = $`<li>
       ${icon}
       <button className="${file.type}" onclick=${function () {
         if (file.type === 'folder') {
-          file.opened = (file.opened) ? false : true
-          element.update(render())
+          file.opened = !file.opened
+          el.update(render())
         }
         onselected(file)
       }}>${path.basename(file.path)}</button>
       ${children}
     </li>`
+    return el
   }
   var element = render()
   console.timeEnd('tree')
@@ -986,7 +1009,6 @@ module.exports = function tree (files, onselected) {
 
 },{"bel":1,"path":33}],9:[function(require,module,exports){
 var $ = require('bel')
-var path = require('path')
 var table = require('./table.js')
 
 module.exports = function viewer (selected, onselected) {
@@ -1010,7 +1032,7 @@ module.exports = function viewer (selected, onselected) {
   return element
 }
 
-},{"./table.js":7,"bel":1,"path":33}],10:[function(require,module,exports){
+},{"./table.js":7,"bel":1}],10:[function(require,module,exports){
 module.exports = Router
 
 var EE = require('events').EventEmitter

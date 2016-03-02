@@ -22,6 +22,7 @@
     "browserify": "^13.0.0",
     "dat-browserify": "git+https://github.com/karissa/dat-browserify.git",
     "electron-prebuilt": "^0.36.9",
+    "flexboxgrid": "^6.3.0",
     "font-awesome": "^4.5.0",
     "gh-pages-deploy": "^0.4.0",
     "nets": "^3.2.0",

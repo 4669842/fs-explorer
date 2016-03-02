@@ -6,13 +6,13 @@ var nets = require('nets')
 var router = createRouter({
   '/': function (params, done) {
     nets({
-      url: 'example/example-fs-tree.json',
+      url: 'fs-explorer/example/example-fs-tree.json',
       json: true
     }, function (err, res, files) {
       done(err, files)
     })
   }
-})
+}, { location: 'hash' })
 
 router.on('transition', function (router, data) {
   app.update(explorer(data))

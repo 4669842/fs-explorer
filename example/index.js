@@ -6,7 +6,7 @@ var nets = require('nets')
 var router = createRouter({
   '/': function (params, done) {
     nets({
-      url: '/fs-explorer/example/example-fs-tree.json',
+      url: 'example/example-fs-tree.json',
       json: true
     }, function (err, res, files) {
       done(err, files)

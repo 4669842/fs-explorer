@@ -874,7 +874,7 @@ var tree = require('./lib/tree')
 module.exports = function explorer (files) {
   console.time('explorer')
   function render (selected) {
-    return $`<div className="fs-explorer">
+    return $`<div className="fs-explorer row">
       ${tree(files, onselected)}
       ${viewer(selected, onselected)}
     </div>`
@@ -967,7 +967,7 @@ var $ = require('bel')
 module.exports = function tree (files, onselected) {
   console.time('tree')
   function render () {
-    return $`<ul className="fs-explorer-tree">
+    return $`<ul className="fs-explorer-tree col-md-3">
       ${files.map(function (file) {
         return li(file)
       })}
@@ -1024,7 +1024,7 @@ module.exports = function viewer (selected, onselected) {
   function fileViewer () {
     return $`<div>${selected.data}</div>`
   }
-  var element = $`<div className="fs-explorer-files">
+  var element = $`<div className="fs-explorer-viewer col-md-9">
     <h3>${selected.path}</h3>
     ${render()}
   </div>`

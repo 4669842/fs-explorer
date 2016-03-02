@@ -24,6 +24,10 @@ but will hopefully be connected to [dat](https://github.com/maxogden/dat) soon.
 
 ## Usage
 
+> Has not yet been published to npm. Please `git clone` and run `npm link`
+> then in your project run `npm link fs-explorer`. This project is still
+> experimental but should be published soon.
+
 ```js
 var explorer = require('fs-explorer')
 

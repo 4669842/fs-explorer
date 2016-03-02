@@ -6,7 +6,6 @@ body {
   color: black;
   font-family: 'Lucida Grande', Helvetica, Arial;
   margin: 0;
-  box-sizing: border-box;
 }
 ul {
   margin: 0;
@@ -24,13 +23,10 @@ button:focus {
 }
 
 .fs-explorer {
+  padding: 1em;
 }
 .fs-explorer-tree {
-  width: 20%;
-  height: 100%;
-  float: left;
   border-right: 1px solid #ddd;
-  padding: .5em .8em;
 }
 .fs-explorer-tree li {
   list-style: none;
@@ -56,25 +52,21 @@ button:focus {
 }
 
 /* Files */
-.fs-explorer-files {
-  float: left;
-  width: 75%;
-  padding: 0 0 0 .5em;
-  margin: 0;
+.fs-explorer-viewer {
 }
-.fs-explorer-files table {
+.fs-explorer-viewer table {
   table-layout: fixed;
   width: 100%;
 }
-.fs-explorer-files button {
+.fs-explorer-viewer button {
   text-align: left;
 }
-.fs-explorer-files thead {
+.fs-explorer-viewer thead {
   border-bottom: 1px solid #ddd;
 }
-.fs-explorer-files th {
+.fs-explorer-viewer th {
   text-align: left;
 }
-.fs-explorer-files td, .fs-explorer-files th {
+.fs-explorer-viewer td, .fs-explorer-viewer th {
   padding: .5em;
 }

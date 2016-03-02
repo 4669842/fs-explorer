@@ -12,7 +12,7 @@ var router = createRouter({
       done(err, files)
     })
   }
-})
+}, { location: 'hash' })
 
 router.on('transition', function (router, data) {
   app.update(explorer(data))

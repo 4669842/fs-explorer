@@ -13,6 +13,7 @@
   "license": "MIT",
   "dependencies": {
     "bel": "git+https://github.com/shama/bel.git",
+    "breadcrumb-element": "^1.0.0",
     "global": "^4.3.0",
     "normalize.css": "^3.0.3",
     "object-assign": "^4.0.1"

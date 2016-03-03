@@ -70,3 +70,13 @@ button:focus {
 .fs-explorer-viewer td, .fs-explorer-viewer th {
   padding: .5em;
 }
+
+.breadcrumb ul {
+  margin: 0;
+  padding: 0;
+}
+.breadcrumb li {
+  float: left;
+  margin: 0 1em 0 0;
+  padding: 0;
+}

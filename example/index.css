@@ -25,51 +25,6 @@ button:focus {
 .fs-explorer {
   padding: 1em;
 }
-.fs-explorer-tree {
-  border-right: 1px solid #ddd;
-}
-.fs-explorer-tree li {
-  list-style: none;
-  clear: both;
-}
-.fs-explorer-tree ul {
-  padding-left: 1em;
-}
-.fs-explorer-tree i {
-  float: left;
-  padding: .3em 0;
-  color: #35b44f;
-}
-.fs-explorer-tree button {
-  background: transparent;
-  border: none;
-  text-align: left;
-  text-overflow: ellipsis;
-  overflow: hidden;
-}
-.fs-explorer-tree button.folder {
-  font-weight: bold;
-}
-
-/* Files */
-.fs-explorer-viewer {
-}
-.fs-explorer-viewer table {
-  table-layout: fixed;
-  width: 100%;
-}
-.fs-explorer-viewer button {
-  text-align: left;
-}
-.fs-explorer-viewer thead {
-  border-bottom: 1px solid #ddd;
-}
-.fs-explorer-viewer th {
-  text-align: left;
-}
-.fs-explorer-viewer td, .fs-explorer-viewer th {
-  padding: .5em;
-}
 
 .breadcrumb ul {
   margin: 0;
@@ -79,4 +34,14 @@ button:focus {
   float: left;
   margin: 0 1em 0 0;
   padding: 0;
+}
+
+/* Menu */
+.menu-overlay {
+
+}
+.menu {
+}
+.menu li {
+  list-style: none;
 }

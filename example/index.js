@@ -1,5 +1,5 @@
 var explorer = require('../index.js')
-var $ = require('bel')
+var bel = require('bel')
 var createRouter = require('base-router')
 var nets = require('nets')
 

@@ -4,27 +4,35 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "wzrd example/index.js:bundle.js",
+    "start": "wzrd example/index.js:bundle.js -- -t csjs-injectify",
     "test": "standard && browserify test.js | testron",
-    "build": "browserify example/index.js -o bundle.js",
+    "build": "browserify example/index.js -o bundle.js -p [ csjs-extractify -o bundle.css ]",
     "deploy": "gh-pages-deploy"
   },
   "author": "Kyle Robinson Young <kyle@dontkry.com> (http://dontkry.com)",
   "license": "MIT",
   "dependencies": {
     "bel": "git+https://github.com/shama/bel.git",
+    "breadcrumb-element": "^1.0.0",
+    "csjs": "^1.0.0",
     "global": "^4.3.0",
+    "insert-css": "^0.2.0",
+    "morphdom": "^1.1.2",
     "normalize.css": "^3.0.3",
-    "object-assign": "^4.0.1"
+    "object-assign": "^4.0.1",
+    "on-load": "^1.0.0"
   },
   "devDependencies": {
     "base-router": "^1.1.0",
     "browserify": "^13.0.0",
+    "csjs-extractify": "^1.0.0-alpha.0",
+    "csjs-injectify": "^1.0.0",
     "dat-browserify": "git+https://github.com/karissa/dat-browserify.git",
     "electron-prebuilt": "^0.36.9",
     "flexboxgrid": "^6.3.0",
     "font-awesome": "^4.5.0",
     "gh-pages-deploy": "^0.4.0",
+    "hyperxify": "^1.2.1",
     "nets": "^3.2.0",
     "standard": "^6.0.7",
     "tape": "^4.4.0",

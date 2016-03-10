@@ -1,7 +1,8 @@
-var explorer = require('../index.js')
-var $ = require('bel')
+var bel = require('bel')
 var createRouter = require('base-router')
 var nets = require('nets')
+var explorer = require('../index.js')
+var update = require('../lib/update')
 
 var router = createRouter({
   '/': function (params, done) {
@@ -15,14 +16,15 @@ var router = createRouter({
 }, { location: 'hash' })
 
 router.on('transition', function (router, data) {
-  app.update(explorer(data))
+  update(app, explorer(data))
 })
-router.transitionTo('/')
 
-var app = $`<div className="app">
+var app = bel`<div class="loading">
   <i className="fa fa-spinner fa-spin"></i> Loading files....
 </div>`
+
 document.body.appendChild(app)
+router.transitionTo('/')
 
 // With Dat
 // var Dat = require('dat-browserify')

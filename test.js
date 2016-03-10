@@ -1,8 +1,9 @@
 var test = require('tape')
-var explorer = require('./index.js')
+var explorer = require('./index')
+var tree = require('./lib/tree')
 
 test('basically works', function (t) {
-  t.plan(2)
+  t.plan(1)
   var files = [
     {
       path: 'bears',
@@ -18,8 +19,7 @@ test('basically works', function (t) {
     }
   ]
   var element = explorer(files)
-  var treeButton = element.querySelector('.fs-explorer-tree button')
-  t.equal(treeButton.textContent, 'bears', 'tree should display the folder name')
-  t.equal(treeButton.className, 'folder', 'tree should have the class folder on folders')
+  var treeButton = element.querySelector('.' + tree.styles.tree)
+  t.ok(treeButton.textContent.indexOf('bears') !== -1, 'tree should display the folder name')
   t.end()
 })

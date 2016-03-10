@@ -11,12 +11,15 @@
   },
   "author": "Kyle Robinson Young <kyle@dontkry.com> (http://dontkry.com)",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/shama/fs-explorer"
+  },
   "dependencies": {
-    "bel": "git+https://github.com/shama/bel.git",
+    "bel": "^3.0.0",
     "breadcrumb-element": "^1.0.0",
     "csjs": "^1.0.0",
     "global": "^4.3.0",
-    "insert-css": "^0.2.0",
     "morphdom": "^1.1.2",
     "normalize.css": "^3.0.3",
     "object-assign": "^4.0.1",
@@ -29,10 +32,8 @@
     "csjs-injectify": "^1.0.0",
     "dat-browserify": "git+https://github.com/karissa/dat-browserify.git",
     "electron-prebuilt": "^0.36.9",
-    "flexboxgrid": "^6.3.0",
     "font-awesome": "^4.5.0",
     "gh-pages-deploy": "^0.4.0",
-    "hyperxify": "^1.2.1",
     "nets": "^3.2.0",
     "standard": "^6.0.7",
     "tape": "^4.4.0",

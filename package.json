@@ -6,7 +6,7 @@
   "scripts": {
     "start": "wzrd example/index.js:bundle.js -- -t csjs-injectify",
     "test": "standard && browserify test.js | testron",
-    "build": "browserify example/index.js -o bundle.js -p [ csjs-extractify -o bundle.css ]",
+    "build": "browserify example/index.js -o bundle.js -t csjs-injectify",
     "deploy": "gh-pages-deploy"
   },
   "author": "Kyle Robinson Young <kyle@dontkry.com> (http://dontkry.com)",

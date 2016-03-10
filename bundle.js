@@ -1,101 +1,453 @@
 (function e(t,n,r){function s(o,u){if(!n[o]){if(!t[o]){var a=typeof require=="function"&&require;if(!u&&a)return a(o,!0);if(i)return i(o,!0);var f=new Error("Cannot find module '"+o+"'");throw f.code="MODULE_NOT_FOUND",f}var l=n[o]={exports:{}};t[o][0].call(l.exports,function(e){var n=t[o][1][e];return s(n?n:e)},l,l.exports,e,t,n,r)}return n[o].exports}var i=typeof require=="function"&&require;for(var o=0;o<r.length;o++)s(r[o]);return s})({1:[function(require,module,exports){
 var document = require('global/document')
-var hyperx = require('hyperx')
-var morphdom = require('morphdom')
+var domcss = require('dom-css')
 
-var SET_ATTR_PROPS = {
-  class: 1,
-  value: 1
-}
+var SVGNS = 'http://www.w3.org/2000/svg'
 var BOOL_PROPS = {
   autofocus: 1,
   checked: 1,
-  defaultChecked: 1,
+  defaultchecked: 1,
   disabled: 1,
-  formNoValidate: 1,
+  formnovalidate: 1,
   indeterminate: 1,
-  readOnly: 1,
+  readonly: 1,
   required: 1,
-  willValidate: 1
+  willvalidate: 1
+}
+var SVG_TAGS = [
+  'svg',
+  'altGlyph', 'altGlyphDef', 'altGlyphItem', 'animate', 'animateColor',
+  'animateMotion', 'animateTransform', 'circle', 'clipPath', 'color-profile',
+  'cursor', 'defs', 'desc', 'ellipse', 'feBlend', 'feColorMatrix',
+  'feComponentTransfer', 'feComposite', 'feConvolveMatrix', 'feDiffuseLighting',
+  'feDisplacementMap', 'feDistantLight', 'feFlood', 'feFuncA', 'feFuncB',
+  'feFuncG', 'feFuncR', 'feGaussianBlur', 'feImage', 'feMerge', 'feMergeNode',
+  'feMorphology', 'feOffset', 'fePointLight', 'feSpecularLighting',
+  'feSpotLight', 'feTile', 'feTurbulence', 'filter', 'font', 'font-face',
+  'font-face-format', 'font-face-name', 'font-face-src', 'font-face-uri',
+  'foreignObject', 'glyph', 'glyphRef', 'hkern', 'image', 'line',
+  'linearGradient', 'marker', 'mask', 'metadata', 'missing-glyph', 'mpath',
+  'path', 'pattern', 'polygon', 'polyline', 'radialGradient', 'rect',
+  'set', 'stop', 'switch', 'symbol', 'text', 'textPath', 'title', 'tref',
+  'tspan', 'use', 'view', 'vkern'
+]
+
+module.exports = function belCreate (opts) {
+  opts = opts || {}
+  var raw = opts.raw === true
+
+  return function belCreateElement (tag, props, children) {
+    var calls = []
+    var el
+
+    // If an svg tag, it needs a namespace
+    if (SVG_TAGS.indexOf(tag) !== -1) {
+      props.namespace = SVGNS
+    }
+
+    // If we are using a namespace
+    var ns = false
+    if (props.namespace) {
+      ns = props.namespace
+      delete props.namespace
+    }
+
+    // Create the element
+    if (ns) {
+      if (raw) {
+        calls.push(['createElementNS', ns, tag])
+      } else {
+        el = document.createElementNS(ns, tag)
+      }
+    } else {
+      if (raw) {
+        calls.push(['createElement', tag])
+      } else {
+        el = document.createElement(tag)
+      }
+    }
+
+    // Create the properties
+    for (var p in props) {
+      if (props.hasOwnProperty(p)) {
+        var key = p.toLowerCase()
+        var val = props[p]
+        // Normalize className
+        if (key === 'classname') {
+          key = 'class'
+          p = 'class'
+        }
+        // If a pseudo inline style, apply the styles
+        if (key === 'style' && typeof val !== 'string') {
+          if (raw) {
+            calls.push(['style', val])
+          } else {
+            domcss(el, val)
+          }
+          continue
+        }
+        // If a property is boolean, set itself to the key
+        if (BOOL_PROPS[key]) {
+          if (val === 'true') val = key
+          else if (val === 'false') continue
+        }
+        // If a property prefers being set directly vs setAttribute
+        if (key.slice(0, 2) === 'on') {
+          if (raw) {
+            calls.push(['expr', p, val])
+          } else {
+            el[p] = val
+          }
+        } else {
+          if (ns) {
+            if (raw) {
+              calls.push(['setAttributeNS', null, p, val])
+            } else {
+              el.setAttributeNS(null, p, val)
+            }
+          } else {
+            if (raw) {
+              calls.push(['setAttribute', p, val])
+            } else {
+              el.setAttribute(p, val)
+            }
+          }
+        }
+      }
+    }
+
+    function appendChild (childs) {
+      if (!Array.isArray(childs)) return
+      for (var i = 0; i < childs.length; i++) {
+        var node = childs[i]
+        if (Array.isArray(node)) {
+          appendChild(node)
+          continue
+        }
+
+        if (typeof node === 'number' ||
+          typeof node === 'boolean' ||
+          node instanceof Date ||
+          node instanceof RegExp) {
+          node = node.toString()
+        }
+
+        if (typeof node === 'string') {
+          if (raw) {
+            calls.push(['createTextNode', node])
+          } else {
+            node = document.createTextNode(node)
+          }
+        }
+
+        if (node && node.nodeName && node.nodeType) {
+          if (raw) {
+            calls.push(['appendChild', node])
+          } else {
+            el.appendChild(node)
+          }
+        }
+      }
+    }
+    appendChild(children)
+
+    // TODO: Validation checks
+    // TODO: Check for a11y things
+
+    return (raw) ? calls : el
+  }
 }
 
-var hx = hyperx(function createElement (tag, props, children) {
-  var el = document.createElement(tag)
-  for (var p in props) {
-    if (props.hasOwnProperty(p)) {
-      var val = props[p]
-      // If a property is boolean, set itself to the key
-      if (BOOL_PROPS[p]) {
-        if (val === 'true') val = p
-        else if (val === 'false') continue
-      }
-      // If a property prefers setAttribute instead
-      if (SET_ATTR_PROPS[p] || BOOL_PROPS[p]) {
-        el.setAttribute(p, val)
-      } else {
-        el[p] = val
-      }
-    }
-  }
-  function appendChild (childs) {
-    if (!Array.isArray(childs)) return
-    for (var i = 0; i < childs.length; i++) {
-      var node = childs[i]
-      if (Array.isArray(node)) {
-        appendChild(node)
-        continue
-      }
+},{"dom-css":3,"global/document":9}],2:[function(require,module,exports){
+var hyperx = require('hyperx')
+var morphdom = require('morphdom')
+var create = require('./create.js')
+var hx = hyperx(create())
 
-      // TODO: Escaping?
-
-      if (typeof node === 'number' ||
-        typeof node === 'boolean' ||
-        node instanceof Date ||
-        node instanceof RegExp) {
-        node = node.toString()
-      }
-
-      if (typeof node === 'string') {
-        node = document.createTextNode(node)
-      }
-
-      if (node && node.nodeName && node.nodeType) {
-        el.appendChild(node)
-      }
-    }
-  }
-  appendChild(children)
-
-  // TODO: Validation checks
-  // TODO: Check for a11y things
-
-  return el
-})
-
-// TODO: SVG Support
-
+var KEY = '_belid'
 var id = 0
+var viewIndex = Object.create(null)
 
+module.exports.create = create
 module.exports = function bel () {
   var el = hx.apply(this, arguments)
-  if (!el.id) {
-    el.id = 'e' + id
-    id += 1
-  }
+  el[KEY] = id
+  viewIndex[id] = el
+  id++
   el.update = function (newel) {
     if (typeof newel === 'function') {
       newel = newel()
     }
-    // TODO: Someday eliminate the need for this
-    // We need to look up the actual element in the DOM because a parent element
-    // could have called .update() and replaced the child node
-    el = document.getElementById(el.id)
-    morphdom(el, newel)
+    var found = viewIndex[el[KEY]]
+    if (found) el = found
+    // Morph and update the viewIndex to the new element
+    viewIndex[el[KEY]] = morphdom(el, newel)
+    // Remove the newel from viewIndex as its not needed anymore
+    delete viewIndex[newel[KEY]]
+    return el
   }
   return el
 }
 
-},{"global/document":2,"hyperx":3,"morphdom":4}],2:[function(require,module,exports){
+},{"./create.js":1,"hyperx":10,"morphdom":12}],3:[function(require,module,exports){
+var prefix = require('prefix-style')
+var toCamelCase = require('to-camel-case')
+var cache = { 'float': 'cssFloat' }
+var addPxToStyle = require('add-px-to-style')
+
+function style (element, property, value) {
+  var camel = cache[property]
+  if (typeof camel === 'undefined') {
+    camel = detect(property)
+  }
+
+  // may be false if CSS prop is unsupported
+  if (camel) {
+    if (value === undefined) {
+      return element.style[camel]
+    }
+
+    element.style[camel] = addPxToStyle(camel, value)
+  }
+}
+
+function each (element, properties) {
+  for (var k in properties) {
+    if (properties.hasOwnProperty(k)) {
+      style(element, k, properties[k])
+    }
+  }
+}
+
+function detect (cssProp) {
+  var camel = toCamelCase(cssProp)
+  var result = prefix(camel)
+  cache[camel] = cache[cssProp] = cache[result] = result
+  return result
+}
+
+function set () {
+  if (arguments.length === 2) {
+    each(arguments[0], arguments[1])
+  } else {
+    style(arguments[0], arguments[1], arguments[2])
+  }
+}
+
+module.exports = set
+module.exports.set = set
+
+module.exports.get = function (element, properties) {
+  if (Array.isArray(properties)) {
+    return properties.reduce(function (obj, prop) {
+      obj[prop] = style(element, prop || '')
+      return obj
+    }, {})
+  } else {
+    return style(element, properties || '')
+  }
+}
+
+},{"add-px-to-style":4,"prefix-style":5,"to-camel-case":6}],4:[function(require,module,exports){
+/* The following list is defined in React's core */
+var IS_UNITLESS = {
+  animationIterationCount: true,
+  boxFlex: true,
+  boxFlexGroup: true,
+  boxOrdinalGroup: true,
+  columnCount: true,
+  flex: true,
+  flexGrow: true,
+  flexPositive: true,
+  flexShrink: true,
+  flexNegative: true,
+  flexOrder: true,
+  gridRow: true,
+  gridColumn: true,
+  fontWeight: true,
+  lineClamp: true,
+  lineHeight: true,
+  opacity: true,
+  order: true,
+  orphans: true,
+  tabSize: true,
+  widows: true,
+  zIndex: true,
+  zoom: true,
+
+  // SVG-related properties
+  fillOpacity: true,
+  stopOpacity: true,
+  strokeDashoffset: true,
+  strokeOpacity: true,
+  strokeWidth: true
+};
+
+module.exports = function(name, value) {
+  if(typeof value === 'number' && !IS_UNITLESS[ name ]) {
+    return value + 'px';
+  } else {
+    return value;
+  }
+};
+},{}],5:[function(require,module,exports){
+var div = null
+var prefixes = [ 'Webkit', 'Moz', 'O', 'ms' ]
+
+module.exports = function prefixStyle (prop) {
+  // re-use a dummy div
+  if (!div) {
+    div = document.createElement('div')
+  }
+
+  var style = div.style
+
+  // prop exists without prefix
+  if (prop in style) {
+    return prop
+  }
+
+  // borderRadius -> BorderRadius
+  var titleCase = prop.charAt(0).toUpperCase() + prop.slice(1)
+
+  // find the vendor-prefixed prop
+  for (var i = prefixes.length; i >= 0; i--) {
+    var name = prefixes[i] + titleCase
+    // e.g. WebkitBorderRadius or webkitBorderRadius
+    if (name in style) {
+      return name
+    }
+  }
+
+  return false
+}
+
+},{}],6:[function(require,module,exports){
+
+var toSpace = require('to-space-case');
+
+
+/**
+ * Expose `toCamelCase`.
+ */
+
+module.exports = toCamelCase;
+
+
+/**
+ * Convert a `string` to camel case.
+ *
+ * @param {String} string
+ * @return {String}
+ */
+
+
+function toCamelCase (string) {
+  return toSpace(string).replace(/\s(\w)/g, function (matches, letter) {
+    return letter.toUpperCase();
+  });
+}
+},{"to-space-case":7}],7:[function(require,module,exports){
+
+var clean = require('to-no-case');
+
+
+/**
+ * Expose `toSpaceCase`.
+ */
+
+module.exports = toSpaceCase;
+
+
+/**
+ * Convert a `string` to space case.
+ *
+ * @param {String} string
+ * @return {String}
+ */
+
+
+function toSpaceCase (string) {
+  return clean(string).replace(/[\W_]+(.|$)/g, function (matches, match) {
+    return match ? ' ' + match : '';
+  });
+}
+},{"to-no-case":8}],8:[function(require,module,exports){
+
+/**
+ * Expose `toNoCase`.
+ */
+
+module.exports = toNoCase;
+
+
+/**
+ * Test whether a string is camel-case.
+ */
+
+var hasSpace = /\s/;
+var hasCamel = /[a-z][A-Z]/;
+var hasSeparator = /[\W_]/;
+
+
+/**
+ * Remove any starting case from a `string`, like camel or snake, but keep
+ * spaces and punctuation that may be important otherwise.
+ *
+ * @param {String} string
+ * @return {String}
+ */
+
+function toNoCase (string) {
+  if (hasSpace.test(string)) return string.toLowerCase();
+
+  if (hasSeparator.test(string)) string = unseparate(string);
+  if (hasCamel.test(string)) string = uncamelize(string);
+  return string.toLowerCase();
+}
+
+
+/**
+ * Separator splitter.
+ */
+
+var separatorSplitter = /[\W_]+(.|$)/g;
+
+
+/**
+ * Un-separate a `string`.
+ *
+ * @param {String} string
+ * @return {String}
+ */
+
+function unseparate (string) {
+  return string.replace(separatorSplitter, function (m, next) {
+    return next ? ' ' + next : '';
+  });
+}
+
+
+/**
+ * Camelcase splitter.
+ */
+
+var camelSplitter = /(.)([A-Z]+)/g;
+
+
+/**
+ * Un-camelcase a `string`.
+ *
+ * @param {String} string
+ * @return {String}
+ */
+
+function uncamelize (string) {
+  return string.replace(camelSplitter, function (m, previous, uppers) {
+    return previous + ' ' + uppers.toLowerCase().split('').join(' ');
+  });
+}
+},{}],9:[function(require,module,exports){
 (function (global){
 var topLevel = typeof global !== 'undefined' ? global :
     typeof window !== 'undefined' ? window : {}
@@ -114,13 +466,17 @@ if (typeof document !== 'undefined') {
 }
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"min-document":26}],3:[function(require,module,exports){
+},{"min-document":37}],10:[function(require,module,exports){
+var attrToProp = require('hyperscript-attribute-to-property')
+
 var VAR = 0, TEXT = 1, OPEN = 2, CLOSE = 3, ATTR = 4
 var ATTR_KEY = 5, ATTR_KEY_W = 6
 var ATTR_VALUE_W = 7, ATTR_VALUE = 8
 var ATTR_VALUE_SQ = 9, ATTR_VALUE_DQ = 10
+var ATTR_EQ = 11, ATTR_BREAK = 12
 
 module.exports = function (h, opts) {
+  h = attrToProp(h)
   if (!opts) opts = {}
   var concat = opts.concat || function (a, b) {
     return String(a) + String(b)
@@ -154,7 +510,9 @@ module.exports = function (h, opts) {
         var ix = stack[stack.length-1][1]
         if (stack.length > 1) {
           stack.pop()
-          stack[stack.length-1][0][2][ix] = h(cur[0], cur[1], cur[2].length ? cur[2] : undefined)
+          stack[stack.length-1][0][2][ix] = h(
+            cur[0], cur[1], cur[2].length ? cur[2] : undefined
+          )
         }
       } else if (s === OPEN) {
         var c = [p[1],{},[]]
@@ -168,7 +526,7 @@ module.exports = function (h, opts) {
             key = concat(key, parts[i][1])
           } else if (parts[i][0] === VAR && parts[i][1] === ATTR_KEY) {
             if (typeof parts[i][2] === 'object' && !key) {
-              for(copyKey in parts[i][2]) {
+              for (copyKey in parts[i][2]) {
                 if (parts[i][2].hasOwnProperty(copyKey) && !cur[1][copyKey]) {
                   cur[1][copyKey] = parts[i][2][copyKey]
                 }
@@ -178,15 +536,22 @@ module.exports = function (h, opts) {
             }
           } else break
         }
+        if (parts[i][0] === ATTR_EQ) i++
+        var j = i
         for (; i < parts.length; i++) {
-          if (parts[i][0] === ATTR_VALUE) {
+          if (parts[i][0] === ATTR_VALUE || parts[i][0] === ATTR_KEY) {
             if (!cur[1][key]) cur[1][key] = strfn(parts[i][1])
             else cur[1][key] = concat(cur[1][key], parts[i][1])
-          } else if (parts[i][0] === VAR && parts[i][1] === ATTR_VALUE) {
+          } else if (parts[i][0] === VAR
+          && (parts[i][1] === ATTR_VALUE || parts[i][1] === ATTR_KEY)) {
             if (!cur[1][key]) cur[1][key] = strfn(parts[i][2])
             else cur[1][key] = concat(cur[1][key], parts[i][2])
           } else {
-            i--
+            if (key.length && !cur[1][key] && parts[i][0] === CLOSE && i === j) {
+              // https://html.spec.whatwg.org/multipage/infrastructure.html#boolean-attributes
+              // empty string is falsy, not well behaved value in browser
+              cur[1][key] = key.toLowerCase()
+            }
             break
           }
         }
@@ -198,7 +563,9 @@ module.exports = function (h, opts) {
         if (selfClosing(cur[0]) && stack.length) {
           var ix = stack[stack.length-1][1]
           stack.pop()
-          stack[stack.length-1][0][2][ix] = h(cur[0], cur[1], cur[2].length ? cur[2] : undefined)
+          stack[stack.length-1][0][2][ix] = h(
+            cur[0], cur[1], cur[2].length ? cur[2] : undefined
+          )
         }
       } else if (s === VAR && p[1] === TEXT) {
         if (p[2] === undefined || p[2] === null) p[2] = ''
@@ -210,6 +577,8 @@ module.exports = function (h, opts) {
         }
       } else if (s === TEXT) {
         cur[2].push(p[1])
+      } else if (s === ATTR_EQ || s === ATTR_BREAK) {
+        // no-op
       } else {
         throw new Error('unhandled: ' + s)
       }
@@ -224,6 +593,10 @@ module.exports = function (h, opts) {
       throw new Error(
         'multiple root elements must be wrapped in an enclosing tag'
       )
+    }
+    if (Array.isArray(tree[2][0]) && typeof tree[2][0][0] === 'string'
+    && Array.isArray(tree[2][0][2])) {
+      tree[2][0] = h(tree[2][0][0], tree[2][0][1], tree[2][0][2])
     }
     return tree[2][0]
 
@@ -258,38 +631,41 @@ module.exports = function (h, opts) {
         } else if (state === ATTR && /[\w-]/.test(c)) {
           state = ATTR_KEY
           reg = c
+        } else if (state === ATTR && /\s/.test(c)) {
+          res.push([ATTR_BREAK])
         } else if (state === ATTR_KEY && /\s/.test(c)) {
           res.push([ATTR_KEY,reg])
           reg = ''
           state = ATTR_KEY_W
         } else if (state === ATTR_KEY && c === '=') {
-          res.push([ATTR_KEY,reg])
+          res.push([ATTR_KEY,reg],[ATTR_EQ])
           reg = ''
           state = ATTR_VALUE_W
         } else if (state === ATTR_KEY) {
           reg += c
         } else if (state === ATTR_KEY_W && c === '=') {
+          res.push([ATTR_EQ])
           state = ATTR_VALUE_W
-        } else if (state === ATTR_KEY_W && !/\s/.test(c)) {
+        } else if ((state === ATTR_KEY_W || state === ATTR) && !/\s/.test(c)) {
+          res.push([ATTR_EQ])
           state = ATTR
-          i--
         } else if (state === ATTR_VALUE_W && c === '"') {
           state = ATTR_VALUE_DQ
         } else if (state === ATTR_VALUE_W && c === "'") {
           state = ATTR_VALUE_SQ
         } else if (state === ATTR_VALUE_DQ && c === '"') {
-          res.push([ATTR_VALUE,reg])
+          res.push([ATTR_VALUE,reg],[ATTR_BREAK])
           reg = ''
           state = ATTR
         } else if (state === ATTR_VALUE_SQ && c === "'") {
-          res.push([ATTR_VALUE,reg])
+          res.push([ATTR_VALUE,reg],[ATTR_BREAK])
           reg = ''
           state = ATTR
         } else if (state === ATTR_VALUE_W && !/\s/.test(c)) {
           state = ATTR_VALUE
           i--
         } else if (state === ATTR_VALUE && /\s/.test(c)) {
-          res.push([ATTR_VALUE,reg])
+          res.push([ATTR_BREAK],[ATTR_VALUE,reg])
           reg = ''
           state = ATTR
         } else if (state === ATTR_VALUE || state === ATTR_VALUE_SQ
@@ -335,11 +711,43 @@ function has (obj, key) { return hasOwn.call(obj, key) }
 var closeRE = RegExp('^(' + [
   'area', 'base', 'basefont', 'bgsound', 'br', 'col', 'command', 'embed',
   'frame', 'hr', 'img', 'input', 'isindex', 'keygen', 'link', 'meta', 'param',
-  'source', 'track', 'wbr'
+  'source', 'track', 'wbr',
+  // SVG TAGS
+  'animate', 'animateTransform', 'circle', 'cursor', 'desc', 'ellipse',
+  'feBlend', 'feColorMatrix', 'feComponentTransfer', 'feComposite',
+  'feConvolveMatrix', 'feDiffuseLighting', 'feDisplacementMap',
+  'feDistantLight', 'feFlood', 'feFuncA', 'feFuncB', 'feFuncG', 'feFuncR',
+  'feGaussianBlur', 'feImage', 'feMerge', 'feMergeNode', 'feMorphology',
+  'feOffset', 'fePointLight', 'feSpecularLighting', 'feSpotLight', 'feTile',
+  'feTurbulence', 'font-face-format', 'font-face-name', 'font-face-uri',
+  'glyph', 'glyphRef', 'hkern', 'image', 'line', 'missing-glyph', 'mpath',
+  'path', 'polygon', 'polyline', 'rect', 'set', 'stop', 'tref', 'use', 'view',
+  'vkern'
 ].join('|') + ')(?:[\.#][a-zA-Z0-9\u007F-\uFFFF_:-]+)*$')
 function selfClosing (tag) { return closeRE.test(tag) }
 
-},{}],4:[function(require,module,exports){
+},{"hyperscript-attribute-to-property":11}],11:[function(require,module,exports){
+module.exports = attributeToProperty
+
+var transform = {
+  'class': 'className',
+  'for': 'htmlFor',
+  'http-equiv': 'httpEquiv'
+}
+
+function attributeToProperty (h) {
+  return function (tagName, attrs, children) {
+    for (var attr in attrs) {
+      if (attr in transform) {
+        attrs[transform[attr]] = attrs[attr]
+        delete attrs[attr]
+      }
+    }
+    return h(tagName, attrs, children)
+  }
+}
+
+},{}],12:[function(require,module,exports){
 // Create a range object for efficently rendering strings to elements.
 var range;
 
@@ -825,11 +1233,12 @@ function morphdom(fromNode, toNode, options) {
 
 module.exports = morphdom;
 
-},{}],5:[function(require,module,exports){
-var explorer = require('../index.js')
-var $ = require('bel')
+},{}],13:[function(require,module,exports){
+var bel = require('bel')
 var createRouter = require('base-router')
 var nets = require('nets')
+var explorer = require('../index.js')
+var update = require('../lib/update')
 
 var router = createRouter({
   '/': function (params, done) {
@@ -843,14 +1252,15 @@ var router = createRouter({
 }, { location: 'hash' })
 
 router.on('transition', function (router, data) {
-  app.update(explorer(data))
+  update(app, explorer(data))
 })
-router.transitionTo('/')
 
-var app = $`<div className="app">
+var app = bel`<div class="loading">
   <i className="fa fa-spinner fa-spin"></i> Loading files....
 </div>`
+
 document.body.appendChild(app)
+router.transitionTo('/')
 
 // With Dat
 // var Dat = require('dat-browserify')
@@ -866,45 +1276,145 @@ document.body.appendChild(app)
 //   console.log('got entry', entry)
 // })
 
-},{"../index.js":6,"base-router":10,"bel":1,"nets":45}],6:[function(require,module,exports){
-var $ = require('bel')
+},{"../index.js":14,"../lib/update":18,"base-router":20,"bel":2,"nets":75}],14:[function(require,module,exports){
+var bel = require('bel')
+var csjs = require('csjs-injectify/csjs-inject')
+var update = require('./lib/update')
 var viewer = require('./lib/viewer')
 var tree = require('./lib/tree')
 
 module.exports = function explorer (files) {
   console.time('explorer')
   function render (selected) {
-    return $`<div className="fs-explorer row">
+    return bel`<div class="${className}">
       ${tree(files, onselected)}
       ${viewer(selected, onselected)}
     </div>`
   }
   function onselected (file) {
-    element.update(render(file))
+    update('.' + className, render(file))
   }
   var element = render(files[0])
   console.timeEnd('explorer')
   return element
 }
 
-},{"./lib/tree":8,"./lib/viewer":9,"bel":1}],7:[function(require,module,exports){
+var styles = module.exports.styles = csjs`
+.fs-explorer {
+  display: flex;
+  flex-wrap: wrap;
+  height: 100%;
+}
+`
+var className = styles['fs-explorer']
+
+},{"./lib/tree":17,"./lib/update":18,"./lib/viewer":19,"bel":2,"csjs-injectify/csjs-inject":54}],15:[function(require,module,exports){
+var bel = require('bel')
+var csjs = require('csjs-injectify/csjs-inject')
+var onload = require('on-load')()
+
+module.exports = function menu (shownMenu, action) {
+  var element = render()
+  onload(element, function () {
+    document.addEventListener('mousedown', onHide)
+    document.addEventListener('touchstart', onHide)
+  }, function () {
+    document.removeEventListener('mousedown', onHide)
+    document.removeEventListener('touchstart', onHide)
+  })
+  return element
+
+  function render () {
+    var items = [
+      downloadButton(shownMenu.file),
+      deleteButton(shownMenu.file)
+    ]
+    var rect = shownMenu.target.getBoundingClientRect()
+    var style = {
+      position: 'absolute',
+      top: rect.top + rect.height,
+      left: rect.left
+    }
+    return bel`<ul class=${styles.index} style=${style}>
+      ${items.map(function (item) {
+        return bel`<li>${item}</li>`
+      })}
+    </ul>`
+  }
+
+  function downloadButton (file) {
+    return bel`<button onclick=${function () {
+      action('download', file)
+    }}>Download</button>`
+  }
+
+  function deleteButton (file) {
+    return bel`<button onclick=${function () {
+      action('delete', file)
+    }}>Delete</button>`
+  }
+
+  function onHide (e) {
+    var source = e.target
+    while (source.parentNode) {
+      if (source === element) {
+        return true
+      }
+      source = source.parentNode
+    }
+    action('hide')
+  }
+}
+
+var styles = module.exports.styles = csjs`
+.index {
+  box-shadow: 0px 0px 3px 0px rgba(0,0,0,0.5);
+  position: absolute;
+  background-color: #F5F5F5;
+  padding: 0;
+  margin: 0;
+  font-size: .8rem;
+}
+.index button {
+  padding: .5rem 1rem;
+  width: 100%;
+}
+.index button:hover {
+  background-color: #F0F4C3;
+}
+`
+
+},{"bel":2,"csjs-injectify/csjs-inject":54,"on-load":83}],16:[function(require,module,exports){
 var path = require('path')
-var $ = require('bel')
+var bel = require('bel')
+var csjs = require('csjs-injectify/csjs-inject')
+var update = require('./update')
+var contextmenu = require('./contextmenu.js')
 
 module.exports = function table (files, onselected) {
   console.time('table')
   var asc = true
   var sortBy = 'path'
+  var element = render(files)
+  console.timeEnd('table')
+  return element
+
+  var menu = bel`<div></div>`
+
   function render (files) {
-    return $`<table>
-      ${head()}
-      ${body(files)}
-    </table>`
+    return bel`<div class="${className}">
+      <table>
+        ${head()}
+        ${body(files)}
+      </table>
+      ${menu}
+    </div>`
   }
+
   function sort (name) {
     asc = !asc
     sortBy = name
-    files = files.sort(function (a, b) {
+    files = files.slice(0).sort(function (a, b) {
       a = a[name]
       b = b[name]
       if (name === 'path') {
@@ -913,37 +1423,43 @@ module.exports = function table (files, onselected) {
       }
       return (asc) ? a.localeCompare(b) : b.localeCompare(a)
     })
-    element.update(render(files))
+    update('.' + className, render(files))
   }
+
   function th (key, label) {
     var icon = ''
     if (sortBy === key) {
-      icon = (asc) ? $`<i className="fa fa-caret-down"></i>` : $`<i className="fa fa-caret-up"></i>`
+      icon = (asc) ? bel`<i className="fa fa-caret-down"></i>` : bel`<i className="fa fa-caret-up"></i>`
     }
-    return $`<th>
+    return bel`<th>
       <button onclick=${function () {
         sort(key)
       }}>${label}</button>
       ${icon}
     </th>`
   }
+
   function head () {
-    return $`<thead>
+    return bel`<thead>
       <tr>
         ${th('path', 'Name')}
         ${th('mtime', 'Modified')}
       </tr>
     </thead>`
   }
+
   function body () {
-    return $`<tbody>
+    return bel`<tbody>
       ${files.map(function (file) {
-        var icon = $`<i className="fa fa-${file.type}"></i>`
-        return $`<tr>
+        var icon = bel`<i className="fa fa-${file.type}"></i>`
+        return bel`<tr>
           <td>
             ${icon}
             <button onclick=${function () {
               onselected(file)
+            }} oncontextmenu=${function (e) {
+              e.preventDefault()
+              showMenu(e.target, file)
             }}>${path.basename(file.path)}</button>
           </td>
           <td>
@@ -953,32 +1469,66 @@ module.exports = function table (files, onselected) {
       })}
     </tbody>`
   }
-  var element = render(files)
-  console.timeEnd('table')
-  return element
+
+  function showMenu (trigger, file) {
+    update(menu, contextmenu(['one', 'two']))
+    //return showMenu ? menu() : ''
+  }
 }
 
-},{"bel":1,"path":33}],8:[function(require,module,exports){
+var styles = module.exports.styles = csjs`
+.table table {
+  table-layout: fixed;
+  width: 100%;
+}
+.table button {
+  text-align: left;
+}
+.table thead {
+  border-bottom: 1px solid #ddd;
+}
+.table th {
+  text-align: left;
+}
+.table td, .viewer th {
+  padding: .5em;
+}
+`
+var className = styles.table
+
+},{"./contextmenu.js":15,"./update":18,"bel":2,"csjs-injectify/csjs-inject":54,"path":44}],17:[function(require,module,exports){
 var path = require('path')
-var $ = require('bel')
+var bel = require('bel')
+var csjs = require('csjs-injectify/csjs-inject')
+var update = require('./update')
+var contextmenu = require('./contextmenu.js')
 
 // TODO: Store opened/closed state internally and use localstorage
 
 module.exports = function tree (files, onselected) {
   console.time('tree')
+  var shownMenu = false
+  var element = render()
+  console.timeEnd('tree')
+  return element
+
   function render () {
-    return $`<ul className="fs-explorer-tree col-md-3">
-      ${files.map(function (file) {
-        return li(file)
-      })}
-    </ul>`
+    return bel`<div class=${className}>
+      <ul>
+        ${files.map(function (file) {
+          return li(file)
+        })}
+      </ul>
+      ${shownMenu ? contextmenu(shownMenu, menuAction) : ''}
+    </div>`
   }
+
   function li (file) {
     var children = ''
     var icon = ''
     if (file.type === 'folder') {
       if (file.opened) {
-        children = $`<ul>${file.children.map(function (child) {
+        children = bel`<ul>${file.children.map(function (child) {
           return li(child)
         })}</ul>`
         icon = 'fa-folder-open'
@@ -988,27 +1538,107 @@ module.exports = function tree (files, onselected) {
     } else {
       icon = 'fa-file'
     }
-    icon = $`<i className="fa ${icon}"></i>`
-    var el = $`<li>
+    icon = bel`<i className="fa ${icon}"></i>`
+    var el = bel`<li>
       ${icon}
       <button className="${file.type}" onclick=${function () {
         if (file.type === 'folder') {
           file.opened = !file.opened
-          el.update(render())
+          update(el, li(file))
         }
         onselected(file)
+      }} oncontextmenu=${function (e) {
+        e.preventDefault()
+        showMenu(e.target, file)
       }}>${path.basename(file.path)}</button>
       ${children}
     </li>`
     return el
   }
-  var element = render()
-  console.timeEnd('tree')
-  return element
+
+  function menuAction (action) {
+    switch (action) {
+      case 'hide':
+        hideMenu()
+        break
+      default:
+        console.log(action)
+        hideMenu()
+        break
+    }
+  }
+
+  function showMenu (target, file) {
+    shownMenu = {
+      target: target,
+      file: file
+    }
+    update(element, render())
+  }
+
+  function hideMenu () {
+    shownMenu = false
+    update(element, render())
+  }
 }
 
-},{"bel":1,"path":33}],9:[function(require,module,exports){
-var $ = require('bel')
+var styles = module.exports.styles = csjs`
+.tree {
+  flex: 2;
+  width: 20%;
+  height: 100%;
+  background-color: #DCEDC8;
+  border-right: 2px solid #C5E1A5;
+  padding: 1rem;
+  color: #263238;
+}
+.tree ul {
+}
+.tree li {
+  list-style: none;
+  clear: both;
+}
+.tree li ul {
+  padding-left: 1em;
+}
+.tree i {
+  float: left;
+  padding: .3em 0;
+  color: #1B5E20;
+}
+.tree button {
+  background: transparent;
+  border: none;
+  text-align: left;
+  text-overflow: ellipsis;
+  overflow: hidden;
+}
+.tree button.folder {
+  font-weight: bold;
+}
+.tree button:focus {
+  outline: none;
+}
+`
+var className = styles.tree
+
+},{"./contextmenu.js":15,"./update":18,"bel":2,"csjs-injectify/csjs-inject":54,"path":44}],18:[function(require,module,exports){
+// update() wrapper and likely will become it's own library if useful
+var document = require('global/document')
+var morphdom = require('morphdom')
+
+module.exports = function update (from, to) {
+  if (typeof from === 'string') {
+    from = document.querySelector(from)
+  }
+  // TODO: Queue these and use raf to deal with multiple runs on the same element?
+  morphdom(from, to)
+}
+
+},{"global/document":71,"morphdom":74}],19:[function(require,module,exports){
+var bel = require('bel')
+var csjs = require('csjs-injectify/csjs-inject')
+var breadcrumb = require('breadcrumb-element')
 var table = require('./table.js')
 
 module.exports = function viewer (selected, onselected) {
@@ -1022,17 +1652,32 @@ module.exports = function viewer (selected, onselected) {
     }
   }
   function fileViewer () {
-    return $`<div>${selected.data}</div>`
+    return bel`<div>${selected.data || 'no file data'}</div>`
   }
-  var element = $`<div className="fs-explorer-viewer col-md-9">
-    <h3>${selected.path}</h3>
+  var element = bel`<div class="${className}">
+    <div className="breadcrumb">
+      ${breadcrumb(selected.path.slice(1).split('/'), function (trail) {
+        var p = '/' + trail.join('/')
+        console.log('selected', p)
+        // TODO: Determine path then send up onselected
+      })}
+    </div>
     ${render()}
   </div>`
   console.timeEnd('viewer')
   return element
 }
 
-},{"./table.js":7,"bel":1}],10:[function(require,module,exports){
+var styles = module.exports.styles = csjs`
+.viewer {
+  flex: 8;
+  width: 80%;
+  padding: 1rem;
+}
+`
+var className = styles.viewer
+
+},{"./table.js":16,"bel":2,"breadcrumb-element":35,"csjs-injectify/csjs-inject":54}],20:[function(require,module,exports){
 module.exports = Router
 
 var EE = require('events').EventEmitter
@@ -1167,7 +1812,7 @@ Router.prototype._initBrowser = function BaseRouter_initBrowser (which) {
   }
 }
 
-},{"events":31,"global/document":43,"global/window":44,"inherits":11,"routington":13,"url":39}],11:[function(require,module,exports){
+},{"events":42,"global/document":71,"global/window":72,"inherits":21,"routington":23,"url":50}],21:[function(require,module,exports){
 if (typeof Object.create === 'function') {
   // implementation from standard node.js 'util' module
   module.exports = function inherits(ctor, superCtor) {
@@ -1192,7 +1837,7 @@ if (typeof Object.create === 'function') {
   }
 }
 
-},{}],12:[function(require,module,exports){
+},{}],22:[function(require,module,exports){
 
 var flatten = require('flatten')
 
@@ -1248,7 +1893,7 @@ function Define(frags, root) {
     : nodes
 }
 
-},{"./routington":16,"flatten":17}],13:[function(require,module,exports){
+},{"./routington":26,"flatten":27}],23:[function(require,module,exports){
 
 module.exports = require('./routington');
 
@@ -1256,7 +1901,7 @@ require('./define');
 require('./match');
 require('./parse');
 
-},{"./define":12,"./match":14,"./parse":15,"./routington":16}],14:[function(require,module,exports){
+},{"./define":22,"./match":24,"./parse":25,"./routington":26}],24:[function(require,module,exports){
 
 var assert = require('http-assert')
 
@@ -1336,7 +1981,7 @@ function decode(string) {
   }
 }
 
-},{"./routington":16,"http-assert":18}],15:[function(require,module,exports){
+},{"./routington":26,"http-assert":28}],25:[function(require,module,exports){
 
 var assert = require('assert')
 
@@ -1401,7 +2046,7 @@ function isPipeSeparatedString(x) {
   return /^[\w\.\-][\w\.\-\|]+[\w\.\-]$/.test(x)
 }
 
-},{"./routington":16,"assert":25}],16:[function(require,module,exports){
+},{"./routington":26,"assert":36}],26:[function(require,module,exports){
 
 module.exports = Routington
 
@@ -1463,7 +2108,7 @@ Routington.prototype._attach = function (node) {
   return node
 }
 
-},{}],17:[function(require,module,exports){
+},{}],27:[function(require,module,exports){
 module.exports = function flatten(list, depth) {
   depth = (typeof depth == 'number') ? depth : Infinity;
 
@@ -1481,7 +2126,7 @@ module.exports = function flatten(list, depth) {
   }
 };
 
-},{}],18:[function(require,module,exports){
+},{}],28:[function(require,module,exports){
 var createError = require('http-errors');
 var eql = require('deep-equal');
 
@@ -1516,7 +2161,7 @@ assert.notDeepEqual = function(a, b, status, msg, opts) {
   assert(!eql(a, b), status, msg, opts);
 };
 
-},{"deep-equal":19,"http-errors":22}],19:[function(require,module,exports){
+},{"deep-equal":29,"http-errors":32}],29:[function(require,module,exports){
 var pSlice = Array.prototype.slice;
 var objectKeys = require('./lib/keys.js');
 var isArguments = require('./lib/is_arguments.js');
@@ -1612,7 +2257,7 @@ function objEquiv(a, b, opts) {
   return typeof a === typeof b;
 }
 
-},{"./lib/is_arguments.js":20,"./lib/keys.js":21}],20:[function(require,module,exports){
+},{"./lib/is_arguments.js":30,"./lib/keys.js":31}],30:[function(require,module,exports){
 var supportsArgumentsClass = (function(){
   return Object.prototype.toString.call(arguments)
 })() == '[object Arguments]';
@@ -1634,7 +2279,7 @@ function unsupported(object){
     false;
 };
 
-},{}],21:[function(require,module,exports){
+},{}],31:[function(require,module,exports){
 exports = module.exports = typeof Object.keys === 'function'
   ? Object.keys : shim;
 
@@ -1645,7 +2290,7 @@ function shim (obj) {
   return keys;
 }
 
-},{}],22:[function(require,module,exports){
+},{}],32:[function(require,module,exports){
 
 var statuses = require('statuses');
 var inherits = require('inherits');
@@ -1773,7 +2418,7 @@ codes.forEach(function (code) {
 // backwards-compatibility
 exports["I'mateapot"] = exports.ImATeapot
 
-},{"inherits":11,"statuses":24}],23:[function(require,module,exports){
+},{"inherits":21,"statuses":34}],33:[function(require,module,exports){
 module.exports={
   "100": "Continue",
   "101": "Switching Protocols",
@@ -1838,7 +2483,7 @@ module.exports={
   "510": "Not Extended",
   "511": "Network Authentication Required"
 }
-},{}],24:[function(require,module,exports){
+},{}],34:[function(require,module,exports){
 
 var codes = require('./codes.json');
 
@@ -1900,7 +2545,25 @@ function status(code) {
   return n;
 }
 
-},{"./codes.json":23}],25:[function(require,module,exports){
+},{"./codes.json":33}],35:[function(require,module,exports){
+var bel = require('bel')
+
+module.exports = function (trail, onselected) {
+  var prev = []
+  return bel`<ul>
+    ${trail.map(function (part) {
+      prev.push(part)
+      var crumb = prev.slice(0)
+      return bel`<li>
+        <button onclick=${function () {
+          onselected(crumb)
+        }}>${part}</button>
+      </li>`
+    })}
+  </ul>`
+}
+
+},{"bel":2}],36:[function(require,module,exports){
 // http://wiki.commonjs.org/wiki/Unit_Testing/1.0
 //
 // THIS IS NOT TESTED NOR LIKELY TO WORK OUTSIDE V8!
@@ -2261,9 +2924,9 @@ var objectKeys = Object.keys || function (obj) {
   return keys;
 };
 
-},{"util/":42}],26:[function(require,module,exports){
+},{"util/":53}],37:[function(require,module,exports){
 
-},{}],27:[function(require,module,exports){
+},{}],38:[function(require,module,exports){
 (function (global){
 /*!
  * The buffer module from node.js, for the browser.
@@ -3729,7 +4392,7 @@ function blitBuffer (src, dst, offset, length) {
 }
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"base64-js":28,"ieee754":29,"isarray":30}],28:[function(require,module,exports){
+},{"base64-js":39,"ieee754":40,"isarray":41}],39:[function(require,module,exports){
 ;(function (exports) {
   'use strict'
 
@@ -3862,7 +4525,7 @@ function blitBuffer (src, dst, offset, length) {
   exports.fromByteArray = uint8ToBase64
 }(typeof exports === 'undefined' ? (this.base64js = {}) : exports))
 
-},{}],29:[function(require,module,exports){
+},{}],40:[function(require,module,exports){
 exports.read = function (buffer, offset, isLE, mLen, nBytes) {
   var e, m
   var eLen = nBytes * 8 - mLen - 1
@@ -3948,14 +4611,14 @@ exports.write = function (buffer, value, offset, isLE, mLen, nBytes) {
   buffer[offset + i - d] |= s * 128
 }
 
-},{}],30:[function(require,module,exports){
+},{}],41:[function(require,module,exports){
 var toString = {}.toString;
 
 module.exports = Array.isArray || function (arr) {
   return toString.call(arr) == '[object Array]';
 };
 
-},{}],31:[function(require,module,exports){
+},{}],42:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -4255,9 +4918,9 @@ function isUndefined(arg) {
   return arg === void 0;
 }
 
-},{}],32:[function(require,module,exports){
-arguments[4][11][0].apply(exports,arguments)
-},{"dup":11}],33:[function(require,module,exports){
+},{}],43:[function(require,module,exports){
+arguments[4][21][0].apply(exports,arguments)
+},{"dup":21}],44:[function(require,module,exports){
 (function (process){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -4485,7 +5148,7 @@ var substr = 'ab'.substr(-1) === 'b'
 ;
 
 }).call(this,require('_process'))
-},{"_process":34}],34:[function(require,module,exports){
+},{"_process":45}],45:[function(require,module,exports){
 // shim for using process in browser
 
 var process = module.exports = {};
@@ -4578,7 +5241,7 @@ process.chdir = function (dir) {
 };
 process.umask = function() { return 0; };
 
-},{}],35:[function(require,module,exports){
+},{}],46:[function(require,module,exports){
 (function (global){
 /*! https://mths.be/punycode v1.4.0 by @mathias */
 ;(function(root) {
@@ -5115,7 +5778,7 @@ process.umask = function() { return 0; };
 }(this));
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],36:[function(require,module,exports){
+},{}],47:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -5201,7 +5864,7 @@ var isArray = Array.isArray || function (xs) {
   return Object.prototype.toString.call(xs) === '[object Array]';
 };
 
-},{}],37:[function(require,module,exports){
+},{}],48:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -5288,13 +5951,13 @@ var objectKeys = Object.keys || function (obj) {
   return res;
 };
 
-},{}],38:[function(require,module,exports){
+},{}],49:[function(require,module,exports){
 'use strict';
 
 exports.decode = exports.parse = require('./decode');
 exports.encode = exports.stringify = require('./encode');
 
-},{"./decode":36,"./encode":37}],39:[function(require,module,exports){
+},{"./decode":47,"./encode":48}],50:[function(require,module,exports){
 // Copyright Joyent, Inc. and other Node contributors.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -6028,7 +6691,7 @@ Url.prototype.parseHost = function() {
   if (host) this.hostname = host;
 };
 
-},{"./util":40,"punycode":35,"querystring":38}],40:[function(require,module,exports){
+},{"./util":51,"punycode":46,"querystring":49}],51:[function(require,module,exports){
 'use strict';
 
 module.exports = {
@@ -6046,14 +6709,14 @@ module.exports = {
   }
 };
 
-},{}],41:[function(require,module,exports){
+},{}],52:[function(require,module,exports){
 module.exports = function isBuffer(arg) {
   return arg && typeof arg === 'object'
     && typeof arg.copy === 'function'
     && typeof arg.fill === 'function'
     && typeof arg.readUInt8 === 'function';
 }
-},{}],42:[function(require,module,exports){
+},{}],53:[function(require,module,exports){
 (function (process,global){
 // Copyright Joyent, Inc. and other Node contributors.
 //
@@ -6643,9 +7306,443 @@ function hasOwnProperty(obj, prop) {
 }
 
 }).call(this,require('_process'),typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{"./support/isBuffer":41,"_process":34,"inherits":32}],43:[function(require,module,exports){
-arguments[4][2][0].apply(exports,arguments)
-},{"dup":2,"min-document":26}],44:[function(require,module,exports){
+},{"./support/isBuffer":52,"_process":45,"inherits":43}],54:[function(require,module,exports){
+'use strict';
+
+module.exports = require('csjs-inject');
+
+},{"csjs-inject":57}],55:[function(require,module,exports){
+(function (global){
+'use strict';
+
+var csjs = require('csjs');
+var insertCss = require('insert-css');
+
+function csjsInserter() {
+  var args = Array.prototype.slice.call(arguments);
+  var result = csjs.apply(null, args);
+  if (global.document) {
+    insertCss(csjs.getCss(result));
+  }
+  return result;
+}
+
+module.exports = csjsInserter;
+
+}).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
+},{"csjs":60,"insert-css":73}],56:[function(require,module,exports){
+'use strict';
+
+module.exports = require('csjs/get-css');
+
+},{"csjs/get-css":59}],57:[function(require,module,exports){
+'use strict';
+
+var csjs = require('./csjs');
+
+module.exports = csjs;
+module.exports.csjs = csjs;
+module.exports.getCss = require('./get-css');
+
+},{"./csjs":55,"./get-css":56}],58:[function(require,module,exports){
+'use strict';
+
+module.exports = require('./lib/csjs');
+
+},{"./lib/csjs":64}],59:[function(require,module,exports){
+'use strict';
+
+module.exports = require('./lib/get-css');
+
+},{"./lib/get-css":67}],60:[function(require,module,exports){
+arguments[4][57][0].apply(exports,arguments)
+},{"./csjs":58,"./get-css":59,"dup":57}],61:[function(require,module,exports){
+'use strict';
+
+/**
+ * base62 encode implementation based on base62 module:
+ * https://github.com/andrew/base62.js
+ */
+
+var CHARS = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+
+module.exports = function encode(integer) {
+  if (integer === 0) {
+    return '0';
+  }
+  var str = '';
+  while (integer > 0) {
+    str = CHARS[integer % 62] + str;
+    integer = Math.floor(integer / 62);
+  }
+  return str;
+};
+
+},{}],62:[function(require,module,exports){
+'use strict';
+
+var makeComposition = require('./composition').makeComposition;
+
+module.exports = function createExports(classes, keyframes, compositions) {
+  var keyframesObj = Object.keys(keyframes).reduce(function(acc, key) {
+    var val = keyframes[key];
+    acc[val] = makeComposition([key], [val], true);
+    return acc;
+  }, {});
+
+  var exports = Object.keys(classes).reduce(function(acc, key) {
+    var val = classes[key];
+    var composition = compositions[key];
+    var extended = composition ? getClassChain(composition) : [];
+    var allClasses = [key].concat(extended);
+    var unscoped = allClasses.map(function(name) {
+      return classes[name] ? classes[name] : name;
+    });
+    acc[val] = makeComposition(allClasses, unscoped);
+    return acc;
+  }, keyframesObj);
+
+  return exports;
+}
+
+function getClassChain(obj) {
+  var visited = {}, acc = [];
+
+  function traverse(obj) {
+    return Object.keys(obj).forEach(function(key) {
+      if (!visited[key]) {
+        visited[key] = true;
+        acc.push(key);
+        traverse(obj[key]);
+      }
+    });
+  }
+
+  traverse(obj);
+  return acc;
+}
+
+},{"./composition":63}],63:[function(require,module,exports){
+'use strict';
+
+module.exports = {
+  makeComposition: makeComposition,
+  isComposition: isComposition
+};
+
+/**
+ * Returns an immutable composition object containing the given class names
+ * @param  {array} classNames - The input array of class names
+ * @return {Composition}      - An immutable object that holds multiple
+ *                              representations of the class composition
+ */
+function makeComposition(classNames, unscoped, isAnimation) {
+  var classString = classNames.join(' ');
+  return Object.create(Composition.prototype, {
+    classNames: { // the original array of class names
+      value: Object.freeze(classNames),
+      configurable: false,
+      writable: false,
+      enumerable: true
+    },
+    unscoped: { // the original array of class names
+      value: Object.freeze(unscoped),
+      configurable: false,
+      writable: false,
+      enumerable: true
+    },
+    className: { // space-separated class string for use in HTML
+      value: classString,
+      configurable: false,
+      writable: false,
+      enumerable: true
+    },
+    selector: { // comma-separated, period-prefixed string for use in CSS
+      value: classNames.map(function(name) {
+        return isAnimation ? name : '.' + name;
+      }).join(', '),
+      configurable: false,
+      writable: false,
+      enumerable: true
+    },
+    toString: { // toString() method, returns class string for use in HTML
+      value: function() {
+        return classString;
+      },
+      configurable: false,
+      writeable: false,
+      enumerable: false
+    }
+  });
+}
+
+/**
+ * Returns whether the input value is a Composition
+ * @param value      - value to check
+ * @return {boolean} - whether value is a Composition or not
+ */
+function isComposition(value) {
+  return value instanceof Composition;
+}
+
+/**
+ * Private constructor for use in `instanceof` checks
+ */
+function Composition() {}
+
+},{}],64:[function(require,module,exports){
+'use strict';
+
+var extractExtends = require('./css-extract-extends');
+var isComposition = require('./composition').isComposition;
+var buildExports = require('./build-exports');
+var scopify = require('./scopeify');
+var cssKey = require('./css-key');
+
+module.exports = function csjsHandler(strings) {
+  var values = Array.prototype.slice.call(arguments, 1);
+  var css = joiner(strings, values.map(selectorize));
+
+  var ignores = values.reduce(function(acc, val) {
+    if (isComposition(val)) {
+      val.classNames.forEach(function(name, i) {
+        acc[name] = val.unscoped[i];
+      });
+    }
+    return acc;
+  }, {});
+
+  var scoped = scopify(css, ignores);
+  var hashes = Object.assign({}, scoped.classes, scoped.keyframes);
+  var extracted = extractExtends(scoped.css, hashes);
+
+  var localClasses = without(scoped.classes, ignores);
+  var localKeyframes = without(scoped.keyframes, ignores);
+  var compositions = extracted.compositions;
+
+  var exports = buildExports(localClasses, localKeyframes, compositions);
+
+  return Object.defineProperty(exports, cssKey, {
+    enumerable: false,
+    configurable: false,
+    writeable: false,
+    value: extracted.css
+  });
+};
+
+/**
+ * Replaces class compositions with comma seperated class selectors
+ * @param  value - the potential class composition
+ * @return       - the original value or the selectorized class composition
+ */
+function selectorize(value) {
+  return isComposition(value) ? value.selector : value;
+}
+
+/**
+ * Joins template string literals and values
+ * @param  {array} strings - array of strings
+ * @param  {array} values  - array of values
+ * @return {string}        - strings and values joined
+ */
+function joiner(strings, values) {
+  return strings.map(function(str, i) {
+    return (i !== values.length) ? str + values[i] : str;
+  }).join('');
+}
+
+/**
+ * Returns first object without keys of second
+ * @param  {object} obj      - source object
+ * @param  {object} unwanted - object with unwanted keys
+ * @return {object}          - first object without unwanted keys
+ */
+function without(obj, unwanted) {
+  return Object.keys(obj).reduce(function(acc, key) {
+    if (!unwanted[key]) {
+      acc[key] = obj[key];
+    }
+    return acc;
+  }, {});
+}
+
+},{"./build-exports":62,"./composition":63,"./css-extract-extends":65,"./css-key":66,"./scopeify":70}],65:[function(require,module,exports){
+'use strict';
+
+var makeComposition = require('./composition').makeComposition;
+
+var regex = /(.*?)(\s+?)(extends\s+?)((?:.|\n)*?){(?:(?:.|\n)*?)}/g;
+
+module.exports = function extractExtends(css, hashed) {
+  var found, matches = [];
+  while (found = regex.exec(css)) {
+    matches.unshift(found);
+  }
+
+  function extractCompositions(acc, match) {
+    var extendee = getClassName(match[1]);
+    var keyword = match[3];
+    var extended = match[4];
+
+    // remove from output css
+    var index = match.index + match[1].length + match[2].length;
+    var len = keyword.length + extended.length;
+    acc.css = acc.css.slice(0, index) + acc.css.slice(index + len);
+    
+    var extendedClasses = splitter(extended);
+
+    extendedClasses.forEach(function(className) {
+      if (!acc.compositions[extendee]) {
+        acc.compositions[extendee] = {};
+      }
+      if (!acc.compositions[className]) {
+        acc.compositions[className] = {};
+      }
+      acc.compositions[extendee][className] = acc.compositions[className];
+    });
+    return acc;
+  }
+
+  return matches.reduce(extractCompositions, {
+    css: css,
+    compositions: {}
+  });
+
+};
+
+function splitter(match) {
+  return match.split(',').map(getClassName);
+}
+
+function getClassName(str) {
+  var trimmed = str.trim();
+  return trimmed[0] === '.' ? trimmed.substr(1) : trimmed;
+}
+
+},{"./composition":63}],66:[function(require,module,exports){
+'use strict';
+
+/**
+ * CSS identifiers with whitespace are invalid
+ * Hence this key will not cause a collision
+ */
+
+module.exports = ' css ';
+
+},{}],67:[function(require,module,exports){
+'use strict';
+
+var cssKey = require('./css-key');
+
+module.exports = function getCss(csjs) {
+  return csjs[cssKey];
+};
+
+},{"./css-key":66}],68:[function(require,module,exports){
+'use strict';
+
+/**
+ * djb2 string hash implementation based on string-hash module:
+ * https://github.com/darkskyapp/string-hash
+ */
+
+module.exports = function hashStr(str) {
+  var hash = 5381;
+  var i = str.length;
+
+  while (i) {
+    hash = (hash * 33) ^ str.charCodeAt(--i)
+  }
+  return hash >>> 0;
+};
+
+},{}],69:[function(require,module,exports){
+'use strict';
+
+var encode = require('./base62-encode');
+var hash = require('./hash-string');
+
+module.exports = function fileScoper(fileSrc) {
+  var suffix = encode(hash(fileSrc));
+
+  return function scopedName(name) {
+    return name + '_' + suffix;
+  }
+};
+
+},{"./base62-encode":61,"./hash-string":68}],70:[function(require,module,exports){
+'use strict';
+
+var fileScoper = require('./scoped-name');
+
+var findClasses = /(\.)(?!\d)([^\s\.,{\[>+~#:]*)(?![^{]*})/.source;
+var findKeyframes = /(@\S*keyframes\s*)([^{\s]*)/.source;
+var ignoreComments = /(?!(?:[^*/]|\*[^/]|\/[^*])*\*+\/)/.source;
+
+var classRegex = new RegExp(findClasses + ignoreComments, 'g');
+var keyframesRegex = new RegExp(findKeyframes + ignoreComments, 'g');
+
+module.exports = scopify;
+
+function scopify(css, ignores) {
+  var makeScopedName = fileScoper(css);
+  var replacers = {
+    classes: classRegex,
+    keyframes: keyframesRegex
+  };
+
+  function scopeCss(result, key) {
+    var replacer = replacers[key];
+    function replaceFn(fullMatch, prefix, name) {
+      var scopedName = ignores[name] ? name : makeScopedName(name);
+      result[key][scopedName] = name;
+      return prefix + scopedName;
+    }
+    return {
+      css: result.css.replace(replacer, replaceFn),
+      keyframes: result.keyframes,
+      classes: result.classes
+    };
+  }
+
+  var result = Object.keys(replacers).reduce(scopeCss, {
+    css: css,
+    keyframes: {},
+    classes: {}
+  });
+
+  return replaceAnimations(result);
+}
+
+function replaceAnimations(result) {
+  var animations = Object.keys(result.keyframes).reduce(function(acc, key) {
+    acc[result.keyframes[key]] = key;
+    return acc;
+  }, {});
+  var unscoped = Object.keys(animations);
+
+  if (unscoped.length) {
+    var regexStr = '((?:animation|animation-name)\\s*:[^};]*)('
+      + unscoped.join('|') + ')' + ignoreComments;
+    var regex = new RegExp(regexStr, 'g');
+
+    var replaced = result.css.replace(regex, function(match, preamble, name) {
+      return preamble + animations[name];
+    });
+
+    return {
+      css: replaced,
+      keyframes: result.keyframes,
+      classes: result.classes
+    }
+  }
+
+  return result;
+}
+
+},{"./scoped-name":69}],71:[function(require,module,exports){
+arguments[4][9][0].apply(exports,arguments)
+},{"dup":9,"min-document":37}],72:[function(require,module,exports){
 (function (global){
 if (typeof window !== "undefined") {
     module.exports = window;
@@ -6658,7 +7755,33 @@ if (typeof window !== "undefined") {
 }
 
 }).call(this,typeof global !== "undefined" ? global : typeof self !== "undefined" ? self : typeof window !== "undefined" ? window : {})
-},{}],45:[function(require,module,exports){
+},{}],73:[function(require,module,exports){
+var inserted = {};
+
+module.exports = function (css, options) {
+    if (inserted[css]) return;
+    inserted[css] = true;
+    
+    var elem = document.createElement('style');
+    elem.setAttribute('type', 'text/css');
+
+    if ('textContent' in elem) {
+      elem.textContent = css;
+    } else {
+      elem.styleSheet.cssText = css;
+    }
+    
+    var head = document.getElementsByTagName('head')[0];
+    if (options && options.prepend) {
+        head.insertBefore(elem, head.childNodes[0]);
+    } else {
+        head.appendChild(elem);
+    }
+};
+
+},{}],74:[function(require,module,exports){
+arguments[4][12][0].apply(exports,arguments)
+},{"dup":12}],75:[function(require,module,exports){
 (function (process,Buffer){
 var req = require('request')
 
@@ -6686,7 +7809,7 @@ function Nets (opts, cb) {
 }
 
 }).call(this,require('_process'),require("buffer").Buffer)
-},{"_process":34,"buffer":27,"request":46}],46:[function(require,module,exports){
+},{"_process":45,"buffer":38,"request":76}],76:[function(require,module,exports){
 "use strict";
 var window = require("global/window")
 var once = require("once")
@@ -6907,7 +8030,7 @@ function _createXHR(options) {
 
 function noop() {}
 
-},{"global/window":44,"is-function":47,"once":48,"parse-headers":51,"xtend":52}],47:[function(require,module,exports){
+},{"global/window":72,"is-function":77,"once":78,"parse-headers":81,"xtend":82}],77:[function(require,module,exports){
 module.exports = isFunction
 
 var toString = Object.prototype.toString
@@ -6924,7 +8047,7 @@ function isFunction (fn) {
       fn === window.prompt))
 };
 
-},{}],48:[function(require,module,exports){
+},{}],78:[function(require,module,exports){
 module.exports = once
 
 once.proto = once(function () {
@@ -6945,7 +8068,7 @@ function once (fn) {
   }
 }
 
-},{}],49:[function(require,module,exports){
+},{}],79:[function(require,module,exports){
 var isFunction = require('is-function')
 
 module.exports = forEach
@@ -6993,7 +8116,7 @@ function forEachObject(object, iterator, context) {
     }
 }
 
-},{"is-function":47}],50:[function(require,module,exports){
+},{"is-function":77}],80:[function(require,module,exports){
 
 exports = module.exports = trim;
 
@@ -7009,7 +8132,7 @@ exports.right = function(str){
   return str.replace(/\s*$/, '');
 };
 
-},{}],51:[function(require,module,exports){
+},{}],81:[function(require,module,exports){
 var trim = require('trim')
   , forEach = require('for-each')
   , isArray = function(arg) {
@@ -7041,7 +8164,7 @@ module.exports = function (headers) {
 
   return result
 }
-},{"for-each":49,"trim":50}],52:[function(require,module,exports){
+},{"for-each":79,"trim":80}],82:[function(require,module,exports){
 module.exports = extend
 
 var hasOwnProperty = Object.prototype.hasOwnProperty;
@@ -7062,4 +8185,40 @@ function extend() {
     return target
 }
 
-},{}]},{},[5]);
+},{}],83:[function(require,module,exports){
+/* global MutationObserver */
+var document = require('global/document')
+
+module.exports = function createOnload () {
+  var watch = []
+
+  var observer = new MutationObserver(function (mutations) {
+    for (var i = 0; i < mutations.length; i++) {
+      var mutation = mutations[i]
+      var x, y
+      for (x = 0; x < mutation.addedNodes.length; x++) {
+        for (y = 0; y < watch.length; y++) {
+          if (watch[y][0] === mutation.addedNodes[x]) {
+            watch[y][1]()
+          }
+        }
+      }
+      for (x = 0; x < mutation.removedNodes.length; x++) {
+        for (y = 0; y < watch.length; y++) {
+          if (watch[y][0] === mutation.removedNodes[x]) {
+            watch[y][2]()
+            watch.splice(y, 1)
+          }
+        }
+      }
+    }
+  })
+  observer.observe(document.body, {childList: true, subtree: true})
+  return function onload (el, l, u) {
+    l = l || function () {}
+    u = u || function () {}
+    watch.push([el, l, u])
+  }
+}
+
+},{"global/document":71}]},{},[13]);

@@ -2,10 +2,11 @@ body {
   font-style: normal;
   font-weight: 400;
   font-size: 14px;
-  background-color: white;
-  color: black;
+  background-color: #ecf0f1;
+  color: #2c3e50;
   font-family: 'Lucida Grande', Helvetica, Arial;
   margin: 0;
+  box-sizing: border-box;
 }
 ul {
   margin: 0;
@@ -16,32 +17,22 @@ button {
   border: none;
 }
 button:hover {
-  color: #a9ce7f;
+  color: #827717;
 }
 button:focus {
   outline: none;
 }
 
-.fs-explorer {
-  padding: 1em;
+.loading {
+  text-align: center;
+  margin: 2em auto;
 }
 
-.breadcrumb ul {
-  margin: 0;
-  padding: 0;
+/* breadcrumb doesnt have css modular yet */
+.breadcrumb {
+  margin: 0 0 2rem 0;
 }
 .breadcrumb li {
-  float: left;
-  margin: 0 1em 0 0;
-  padding: 0;
-}
-
-/* Menu */
-.menu-overlay {
-
-}
-.menu {
-}
-.menu li {
   list-style: none;
+  float: left;
 }

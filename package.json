@@ -18,6 +18,7 @@
   "dependencies": {
     "breadcrumb-element": "^1.0.0",
     "csjs": "^1.0.0",
+    "dom-css": "^2.0.0",
     "global": "^4.3.0",
     "normalize.css": "^3.0.3",
     "object-assign": "^4.0.1",

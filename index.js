@@ -1,4 +1,4 @@
-var bel = require('bel')
+var yo = require('yo-yo')
 var csjs = require('csjs')
 var update = require('./lib/update')
 var viewer = require('./lib/viewer')
@@ -7,7 +7,7 @@ var tree = require('./lib/tree')
 module.exports = function explorer (files) {
   console.time('explorer')
   function render (selected) {
-    return bel`<div class="${className}">
+    return yo`<div class="${className}">
       ${tree(files, onselected)}
       ${viewer(selected, onselected)}
     </div>`

@@ -1,4 +1,4 @@
-var bel = require('bel')
+var yo = require('yo-yo')
 var createRouter = require('base-router')
 var nets = require('nets')
 var explorer = require('../index.js')
@@ -19,7 +19,7 @@ router.on('transition', function (router, data) {
   update(app, explorer(data))
 })
 
-var app = bel`<div class="loading">
+var app = yo`<div class="loading">
   <i className="fa fa-spinner fa-spin"></i> Loading files....
 </div>`
 
